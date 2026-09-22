@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>比赛获奖证书批量下载器</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --card:#ffffff; --line:#e3e8ef; --text:#1f2937; --sub:#6b7280;
+    --brand:#2563eb; --brand-d:#1d4ed8; --ok:#059669; --warn:#d97706; --err:#dc2626;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Microsoft YaHei UI","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;
+    font-size:14px; line-height:1.6;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:26px 20px 40px;}
+  header{margin-bottom:20px;}
+  h1{font-size:21px; margin:0 0 4px; letter-spacing:.3px;}
+  header p{margin:0; color:var(--sub); font-size:13px;}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px 22px; margin-bottom:16px; box-shadow:0 1px 2px rgba(16,24,40,.04);
+  }
+  .row{display:grid; grid-template-columns:88px 1fr; gap:14px; align-items:center; margin-bottom:14px;}
+  .row:last-child{margin-bottom:0;}
+  .row > label{color:var(--sub); font-size:13px; text-align:right;}
+  input[type=text],select{
+    width:100%; padding:9px 12px; border:1px solid var(--line); border-radius:7px;
+    font-size:13.5px; font-family:inherit; color:var(--text); background:#fff; outline:none;
+  }
+  input[type=text]:focus,select:focus{border-color:var(--brand); box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+  input[type=text]:disabled,select:disabled{background:#f9fafb; color:#9ca3af;}
+  .inline{display:flex; gap:8px; align-items:center;}
+  .hint{color:var(--sub); font-size:12.5px;}
+  .drop{
+    border:1.5px dashed #c7d2e0; border-radius:8px; padding:14px; text-align:center;
+    cursor:pointer; transition:.15s; background:#fbfcfe; font-size:13.5px; color:var(--sub);
+  }
+  .drop:hover{border-color:var(--brand); background:#f0f6ff; color:var(--brand);}
+  .drop.has{border-style:solid; border-color:#a7f3d0; background:#f0fdf4; color:var(--ok); text-align:left;}
+  .drop .fname{font-weight:600; color:#065f46;}
+  .btns{display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;}
+  button{
+    padding:10px 20px; border-radius:8px; border:1px solid var(--line); background:#fff;
+    color:var(--text); font-size:14px; font-family:inherit; cursor:pointer; transition:.15s;
+  }
+  button:hover:not(:disabled){background:#f9fafb; border-color:#cbd5e1;}
+  button:disabled{opacity:.5; cursor:not-allowed;}
+  button.primary{background:var(--brand); border-color:var(--brand); color:#fff; font-weight:600; padding:11px 30px;}
+  button.primary:hover:not(:disabled){background:var(--brand-d); border-color:var(--brand-d);}
+  button.danger{color:var(--err); border-color:#fecaca;}
+  button.danger:hover:not(:disabled){background:#fef2f2;}
+  .progress{margin-bottom:16px;}
+  .bar{height:9px; background:#e5e9f0; border-radius:99px; overflow:hidden;}
+  .bar > i{display:block; height:100%; width:0; background:linear-gradient(90deg,#3b82f6,#06b6d4); transition:width .3s;}
+  .stage{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px;}
+  .stage b{font-size:14px;}
+  .stage span{color:var(--sub); font-size:12.5px; font-variant-numeric:tabular-nums;}
+  #log{
+    background:#111827; color:#cbd5e1; border-radius:8px; padding:14px 16px;
+    font-family:Consolas,"Cascadia Mono",monospace; font-size:12.5px; line-height:1.7;
+    height:280px; overflow-y:auto; white-space:pre-wrap; word-break:break-all;
+  }
+  #log .ok{color:#34d399;} #log .err{color:#f87171;} #log .warn{color:#fbbf24;} #log .dim{color:#64748b;}
+  #log .rule{color:#475569;}
+  #log .fix{color:#a5b4fc;}
+  #advice-box{margin-top:14px;}
+  #advice-box summary{cursor:pointer; color:#92400e; font-weight:600; font-size:13.5px;}
+  #advice-text{
+    margin:10px 0 0; padding:12px 14px; background:#fffbeb; border:1px solid #fde68a;
+    border-radius:8px; font-family:Consolas,"Cascadia Mono",monospace; font-size:12.5px;
+    line-height:1.7; white-space:pre-wrap; word-break:break-all; max-height:340px;
+    overflow:auto; color:#78350f;
+  }
+  .diag-tip{font-size:13px; color:#92400e; background:#fffbeb; border:1px solid #fde68a;
+            border-radius:8px; padding:9px 12px; margin-top:12px;}
+  .done-panel{display:none; border-color:#a7f3d0; background:#f0fdf4;}
+  .done-panel.on{display:block;}
+  .done-panel h3{margin:0 0 10px; font-size:15px; color:#065f46;}
+  /* 试跑说明条：橙色最显眼，跟绿色的"成功"面板拉开差别。
+     它要回答的是一句最要紧的话 —— "这只是抽查，不是全部人"。 */
+  .trial-note{font-size:13.5px; line-height:1.75; color:#9a3412; background:#fff7ed;
+              border:1px solid #fdba74; border-radius:8px; padding:10px 13px;
+              margin:0 0 13px;}
+  .stat{display:flex; gap:26px; flex-wrap:wrap; margin-bottom:14px;}
+  .stat div{font-size:13px; color:var(--sub);}
+  .stat b{display:block; font-size:22px; color:var(--ok); font-variant-numeric:tabular-nums;}
+  .badge{display:inline-block; padding:2px 9px; border-radius:99px; font-size:12px; background:#e5e7eb; color:#374151;}
+  .badge.ok{background:#d1fae5; color:#065f46;} .badge.err{background:#fee2e2; color:#991b1b;}
+  footer{color:var(--sub); font-size:12px; text-align:center; margin-top:22px;}
+  details{font-size:13px;} summary{cursor:pointer; color:var(--sub);}
+
+  /* ---- 选文件夹弹层 ---- */
+  .modal{display:none; position:fixed; inset:0; background:rgba(15,23,42,.45);
+         align-items:center; justify-content:center; z-index:50; padding:20px;}
+  .modal.on{display:flex;}
+  .modal-box{background:#fff; border-radius:12px; width:min(620px,94vw); max-height:92vh;
+             overflow:auto; box-shadow:0 20px 50px rgba(2,6,23,.28); padding:20px 22px;}
+  .modal-box h3{margin:0 0 4px; font-size:16px;}
+  .modal-box .subhint{color:var(--sub); font-size:12.5px; margin-bottom:13px;}
+  .path-bar{display:flex; gap:8px; margin-bottom:10px;}
+  .path-bar input{flex:1;}
+  .path-bar button{padding:8px 12px; font-size:13px; white-space:nowrap;}
+  .drives{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
+  .drives button{padding:5px 13px; font-size:13px; border-radius:6px;}
+  .drives button.on{background:#dbeafe; border-color:#93c5fd; color:#1d4ed8; font-weight:600;}
+  .dirlist{border:1px solid var(--line); border-radius:8px; height:225px; overflow-y:auto;
+           background:#fcfdff;}
+  .dirlist > div{padding:7px 13px; cursor:pointer; font-size:13.5px;
+                 border-bottom:1px solid #f1f5f9;}
+  .dirlist > div:hover{background:#eff6ff; color:var(--brand);}
+  .dirlist > div.empty{padding:20px; color:var(--sub); cursor:default; text-align:center;}
+  .dirlist > div.empty:hover{background:transparent; color:var(--sub);}
+  .mkline{display:flex; gap:10px; align-items:center; margin-top:11px; flex-wrap:wrap;}
+  .mkline button{padding:7px 14px; font-size:13px;}
+  .modal-btns{display:flex; gap:10px; justify-content:flex-end; margin-top:16px;}
+  .notice{background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; border-radius:8px;
+          padding:9px 12px; font-size:12.5px; line-height:1.65; margin-top:10px;}
+  .notice b{color:#1d4ed8;}
+  /* 「换比赛」弹层里识别结果的字段一览 */
+  .nstitle{font-weight:700; color:var(--ok); margin-top:12px; font-size:13.5px; line-height:1.6;}
+  .nsgrid{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px;}
+  .nsf{background:#f1f5f9; border:1px solid #e2e8f0; border-radius:7px;
+       padding:4px 9px; font-size:12.5px; color:#475569; white-space:nowrap;}
+  .nsf b{color:#0f172a; margin-left:5px; font-family:Consolas,Menlo,monospace;}
+  .subhint code{background:#f1f5f9; padding:1px 5px; border-radius:4px;
+                font-family:Consolas,Menlo,monospace; font-size:12px;}
+
+  /* ---- 按表头筛选（把 Excel 的自动筛选搬进网页）---- */
+  .fbar{display:flex; justify-content:space-between; align-items:flex-start;
+        gap:14px; flex-wrap:wrap;}
+  .fbar .ft{font-size:14.5px; font-weight:700;}
+  .fbar .fd{color:var(--sub); font-size:12.5px; margin-top:3px; line-height:1.5;}
+  .fsum{display:flex; align-items:center; gap:12px; white-space:nowrap;}
+  #f-left{font-size:13px; color:var(--sub);}
+  #f-left b{font-size:17px; color:var(--brand); font-variant-numeric:tabular-nums;}
+  #f-left.on b{color:var(--ok);}
+  /* 这一块夹在「选名单」和「点下载」中间，得让人一眼看见它：
+     左侧一道蓝边 + 淡蓝底，从进页面起就露脸 */
+  #filter-card{border-left:3px solid var(--brand); background:#fafcff;}
+  #filter-card .ftag{display:inline-block; margin-left:7px; padding:1px 8px;
+                     border-radius:99px; background:#dbeafe; color:#1d4ed8;
+                     font-size:11.5px; font-weight:600; vertical-align:1px;}
+  .fbtn{padding:5px 13px; font-size:12.5px; border-radius:6px; color:var(--sub);}
+  .fchips{display:flex; flex-wrap:wrap; gap:6px; margin-top:11px;}
+  .fchip{background:#dbeafe; border:1px solid #bfdbfe; color:#1d4ed8; border-radius:99px;
+         padding:2px 5px 2px 10px; font-size:12.5px; display:inline-flex;
+         align-items:center; gap:5px; max-width:100%;}
+  .fchip b{font-weight:600;}
+  .fchip em{font-style:normal; overflow:hidden; text-overflow:ellipsis;
+            white-space:nowrap; max-width:220px;}
+  .fchip button{border:none; background:transparent; color:#1d4ed8; cursor:pointer;
+                font-size:15px; line-height:1; padding:0 3px;}
+  .fchip button:hover{color:#dc2626;}
+  .fgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr));
+         gap:10px; margin-top:11px;}
+  .fcol{border:1px solid var(--line); border-radius:8px; background:#fcfdff;
+        overflow:hidden; align-self:start;}
+  .fcol.on{border-color:#93c5fd; background:#f5f9ff;}
+  .fcol-top{display:flex; align-items:center; gap:7px; padding:8px 11px;
+            cursor:pointer; user-select:none;}
+  .fcol-top:hover{background:#f1f7ff;}
+  /* 倒三角按钮：照 Excel 表头那个筛选按钮的样子做 */
+  .fcol-top .car{width:17px; height:17px; border-radius:4px; background:#eef2f7;
+                 color:#64748b; font-size:9px; line-height:17px; text-align:center;
+                 transition:.15s; flex:none;}
+  .fcol.open .fcol-top .car{background:#dbeafe; color:#1d4ed8; transform:rotate(180deg);}
+  .fcol-top .fn{font-weight:600; font-size:13.5px; flex:1; overflow:hidden;
+                text-overflow:ellipsis; white-space:nowrap;}
+  .fcol-top .fs{font-size:12px; color:var(--sub); white-space:nowrap; flex:none;}
+  .fcol.on .fcol-top .fs{color:var(--brand); font-weight:700;}
+  .fcol-body{display:none; padding:0 11px 10px;}
+  .fcol.open .fcol-body{display:block;}
+  .fcol-body .fkw{width:100%; padding:6px 9px; font-size:12.5px; border:1px solid var(--line);
+                  border-radius:6px; font-family:inherit; color:var(--text); background:#fff;
+                  outline:none;}
+  .fcol-body .fkw:focus{border-color:var(--brand); box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+  .flist{margin-top:8px; border-top:1px dashed var(--line); padding-top:6px;
+         max-height:172px; overflow-y:auto;}
+  .flist label{display:flex; align-items:center; gap:7px; padding:3px 5px;
+               border-radius:5px; font-size:13px; cursor:pointer;}
+  .flist label:hover{background:#eef6ff;}
+  .flist label input{width:15px; height:15px; flex:none; margin:0;}
+  .flist label em{font-style:normal; flex:1; overflow:hidden; text-overflow:ellipsis;
+                  white-space:nowrap;}
+  .flist label i{font-style:normal; color:var(--sub); font-size:12px; flex:none;}
+  .flist .more{color:var(--sub); font-size:12px; padding:5px;}
+  .flist .none{color:var(--sub); font-size:12.5px; padding:6px 4px;}
+  .ftools{display:flex; align-items:center; gap:7px; margin-top:7px;
+          font-size:12px; color:var(--sub);}
+  .ftools .ftip{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .ftools button{padding:2px 9px; font-size:12px; border-radius:5px;
+                 border:1px solid var(--line); background:#fff; color:var(--brand);
+                 cursor:pointer; font-family:inherit; line-height:1.7;}
+  .ftools button:hover{background:#eff6ff; border-color:#bfdbfe;}
+  .ftools button:disabled{color:#cbd5e1; cursor:default; background:#fff; border-color:var(--line);}
+  .fnote{margin-top:10px; font-size:12.5px; color:var(--sub); line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>比赛获奖证书批量下载器</h1>
+    <p>读名单 → 自动查询 → 下载证书 → 按学校分类归档 → 生成汇总清单</p>
+  </header>
+
+  <div class="card">
+    <div class="row">
+      <label>学生名单</label>
+      <div>
+        <div class="drop" id="drop">
+          把 Excel / CSV 名单拖到这里，或<span style="color:var(--brand);text-decoration:underline">点击选择文件</span>
+        </div>
+        <input type="file" id="file" accept=".xlsx,.xlsm,.csv" hidden>
+      </div>
+    </div>
+  </div>
+
+  <!-- 按表头筛选：把 Excel 的「自动筛选」搬进网页。
+       位置刻意夹在「选名单」和「点下载」中间 —— 先把人挑出来，再让程序去跑；
+       没筛中的人，既不查询也不下载。
+       这一块**从进页面就露脸**（没拖名单时显示引导语），免得有人压根不知道有筛选、
+       拖完名单直接就往下点「开始查询并下载」了。 -->
+  <div class="card" id="filter-card">
+    <div class="fbar">
+      <div>
+        <div class="ft">按表头筛选 <span class="ftag">先筛人，再下载</span></div>
+        <div class="fd">
+          点列头的 <b>▼</b> 展开，在框里打几个字找出目标，<b>勾上</b>它 —— 跟 Excel 的筛选一个用法。
+          勾过的条件会列在最上面，一条条能去掉。一层层筛下去，从几百人精确到某一个人。
+        </div>
+      </div>
+      <div class="fsum">
+        <span id="f-left"></span>
+        <button class="fbtn" id="f-reset">清空全部筛选</button>
+      </div>
+    </div>
+    <div class="fchips" id="f-chips"></div>
+    <div class="fgrid" id="f-cols"></div>
+    <div class="fnote" id="f-note"></div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label>证书保存到</label>
+      <div>
+        <div class="inline">
+          <input type="text" id="out" placeholder="点右边「浏览…」挑一个位置">
+          <button id="btn-browse" style="white-space:nowrap">浏览…</button>
+          <button id="btn-open" style="white-space:nowrap">打开</button>
+        </div>
+        <div class="hint" style="margin-top:6px">
+          存哪儿由你定：C 盘、D 盘都行，也可以当场新建一个文件夹。
+        </div>
+        <div class="inline" style="margin-top:9px">
+          <input type="checkbox" id="sub" checked style="width:16px;height:16px">
+          <label for="sub" style="color:var(--text);font-size:13.5px;cursor:pointer">在选定位置下自动建一个日期文件夹</label>
+        </div>
+        <div class="hint" id="out-preview" style="margin-top:5px"></div>
+      </div>
+    </div>
+    <div class="row">
+      <label>查询链接</label>
+      <div>
+        <div class="inline">
+          <select id="site" style="flex:1"></select>
+          <button id="btn-newsite" style="white-space:nowrap">＋ 换比赛</button>
+        </div>
+        <div class="hint" style="margin-top:6px">
+          就是你在浏览器里查成绩的那个网址，整行复制、贴上去就行。
+          换比赛时点「＋ 换比赛」把新链接贴进去，程序自己识别。
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <label>试跑</label>
+      <div>
+        <div class="inline">
+          <!-- 默认**不勾**：选了多少人就跑多少人。
+               勾上试跑是"故意只跑一小撮"，这种事必须由人主动打开 ——
+               2026-09-22 这勾默认是开的，用户选了 604 人却只跑了 8 个，
+               而报告上写着"全部完成"，谁都看不出漏了 596 人。 -->
+          <input type="checkbox" id="try" style="width:16px;height:16px">
+          <label for="try" style="color:var(--text);font-size:13.5px;cursor:pointer">先随机试跑</label>
+          <input type="text" id="tryn" value="8" style="width:58px;text-align:center">
+          <span class="hint">人 · <b>只抽查这几个，不是全量</b>（要跑全部人就别勾）</span>
+        </div>
+        <div class="hint" id="try-warn"
+             style="display:none;margin-top:7px;color:#c2410c;font-weight:600">
+          ⚠ 已开启试跑：只会随机查 <b id="try-warn-n">8</b> 人，结果是抽查，
+          <b>不是全部人</b>。跑完还会再提醒一次。
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <label>访问速度</label>
+      <div>
+        <div class="inline">
+          <button id="sp-minus" title="调小间隔 —— 更快" style="width:40px;height:32px;font-size:19px;font-weight:700;line-height:1;padding:0">−</button>
+          <b id="sp-val" style="min-width:110px;text-align:center;font-size:15px;font-variant-numeric:tabular-nums">1.6 秒/人</b>
+          <button id="sp-plus" title="调大间隔 —— 更慢更稳" style="width:40px;height:32px;font-size:19px;font-weight:700;line-height:1;padding:0">＋</button>
+          <span class="hint" id="sp-tip" style="font-weight:600"></span>
+        </div>
+        <div class="hint" style="margin-top:6px">
+          每查一个人之间等多久。<b>数字越小越快</b>，但被网站当成机器人的风险也越大；
+          数字越大越慢、越稳。<b>最快 0.3，最慢 3.0。</b>
+          调完<b>只对这一次任务有效</b> —— 重新开任务会回到默认 1.6。
+          任务跑起来后要先点「暂停」才能改，改完点「继续」按新速度接着跑。
+        </div>
+      </div>
+    </div>
+    <div class="btns">
+      <button class="primary" id="btn-start">开始查询并下载</button>
+      <button id="btn-pause" disabled>⏸ 暂停</button>
+      <button class="danger" id="btn-stop" disabled>结束</button>
+      <button id="btn-check">环境自检</button>
+    </div>
+  </div>
+
+  <div class="card progress" id="prog-panel">
+    <div class="stage">
+      <b id="stage">就绪</b>
+      <span id="stage-num"></span>
+    </div>
+    <div class="bar"><i id="bar"></i></div>
+    <div class="hint" id="eta" style="margin-top:9px;display:none;color:var(--brand);font-weight:600"></div>
+    <div class="hint" id="run-tip" style="margin-top:9px">
+      跑起来后可以最小化浏览器去干别的，任务在后台继续；
+      <b>但别关掉那个黑色窗口，也别让电脑睡眠</b>（建议插上电源）。
+    </div>
+  </div>
+
+  <div class="card done-panel" id="done">
+    <h3 id="done-title">✅ 全部完成</h3>
+    <!-- 试跑说明：跑完必须把"这不是全量"摆在最显眼的地方。
+         没有它，使用者看到"全部完成 + 未获奖 8 人"只会以为名单就 8 个人。 -->
+    <div id="trial-note" class="trial-note" style="display:none"></div>
+    <div class="stat" id="done-stat">
+      <div>证书份数<b id="d-cert">0</b></div>
+      <div>涉及学校<b id="d-school">0</b></div>
+      <div>未获奖<b id="d-miss">0</b></div>
+      <div>失败<b id="d-fail">0</b></div>
+      <div id="d-nofile-box" style="display:none">暂无证书<b id="d-nofile">0</b></div>
+    </div>
+    <div class="btns" style="margin-top:0">
+      <button class="primary" id="btn-open-folder">打开证书文件夹</button>
+      <button id="btn-open-xlsx">打开汇总清单</button>
+      <button id="btn-open-retry" style="display:none">打开失败名单</button>
+    </div>
+    <div class="hint" id="disk-note" style="margin-top:11px;display:none"></div>
+    <div class="diag-tip" id="diag-tip" style="display:none"></div>
+    <details id="advice-box" style="display:none">
+      <summary>遇到问题怎么办？（点开看详细原因和处理办法）</summary>
+      <pre id="advice-text"></pre>
+    </details>
+  </div>
+
+  <div class="card">
+    <div class="stage"><b>运行日志</b><span class="hint" id="log-tip"></span></div>
+    <div id="log"><span class="dim">等待开始…</span></div>
+  </div>
+
+  <footer>
+    本工具仅查询公开的成绩/证书数据，请勿用于非授权用途。
+    <a href="#" id="btn-quit" style="color:var(--sub)">关闭程序</a>
+  </footer>
+</div>
+
+<!-- 选保存位置：跟装软件时选安装路径一个手感 -->
+<div class="modal" id="pick">
+  <div class="modal-box">
+    <h3>选一个保存证书的文件夹</h3>
+    <div class="subhint">点文件夹进去看，选好了就点右下角「就用这个文件夹」。</div>
+    <div class="path-bar">
+      <button id="pk-up">↑ 上一级</button>
+      <input type="text" id="pk-path" spellcheck="false" placeholder="也可以直接把路径粘到这里">
+      <button id="pk-go">转到</button>
+    </div>
+    <div class="drives" id="pk-drives"></div>
+    <div class="dirlist" id="pk-list"></div>
+    <div class="mkline">
+      <button id="pk-mk">＋ 新建文件夹</button>
+      <span class="hint" id="pk-tip"></span>
+    </div>
+    <div class="modal-btns">
+      <button id="pk-cancel">取消</button>
+      <button class="primary" id="pk-ok">就用这个文件夹</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="newsite">
+  <div class="modal-box">
+    <h3>换一个新的比赛</h3>
+    <div class="subhint">
+      把新比赛的<b>成绩查询页</b>网址贴到下面 ——
+      就是你在浏览器里查成绩的那个页面，地址里通常带 <code>/q/xxxx</code>。
+      贴好点「自动识别」，程序会自己去读这个页面的比赛信息。
+    </div>
+    <div class="path-bar">
+      <input type="text" id="ns-url" spellcheck="false" style="flex:1"
+             placeholder="https://.../q/xxxx（从浏览器地址栏整行复制）">
+    </div>
+    <div id="ns-result"></div>
+    <div class="modal-btns">
+      <button id="ns-cancel">取消</button>
+      <button id="ns-probe">自动识别</button>
+      <button class="primary" id="ns-ok" disabled>添加这个比赛</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let pickedFile = null, pickedB64 = '', logOffset = 0, polling = null, running = false;
+let peekSeq = 0;
+
+// ---------- 访问速度（−／＋） ----------
+// 规则（用户定的）：跑着的时候不许改；要改先「暂停」，改完点「继续」，
+// 后面那部分按新速度跑。而且这个值**只对当前这一次任务有效** ——
+// 任务一结束就回到默认 1.6，不会被记住。
+let SPEED_STEPS = [0.3, 0.5, 0.7, 0.9, 1.2, 1.6, 2.0, 2.5, 3.0];
+let si = 5;              // 索引 5 = 1.6 秒/人（默认）
+let paused = false;
+
+function speedLevel(v){
+  if (v >= 2.5) return '很稳（网络差时用）';
+  if (v >= 2.0) return '更稳';
+  if (v >= 1.6) return '稳妥，推荐';
+  if (v >= 1.2) return '略快';
+  if (v >= 0.9) return '快一些';
+  if (v >= 0.7) return '很快 · 有被拦风险';
+  if (v >= 0.5) return '太快 · 谨慎';
+  return '最快 · 风险最高';
+}
+
+function speedColor(v){
+  if (v <= 0.7) return '#dc2626';
+  if (v <= 1.0) return '#d97706';
+  return '#065f46';
+}
+
+function paintSpeed(){
+  const v = SPEED_STEPS[si];
+  const locked = running && !paused;         // 跑着又没暂停 → 锁住
+  $('sp-val').textContent = v.toFixed(1) + ' 秒/人';
+  $('sp-val').style.color = locked ? '#94a3b8' : speedColor(v);
+  $('sp-minus').disabled = locked || si <= 0;
+  $('sp-plus').disabled  = locked || si >= SPEED_STEPS.length - 1;
+  const tip = $('sp-tip');
+  if (locked){
+    tip.textContent = '任务进行中 · 想改先点「暂停」';
+    tip.style.color = '#94a3b8';
+  } else if (paused){
+    tip.textContent = '已暂停 · 改完点「继续」生效';
+    tip.style.color = '#0369a1';
+  } else {
+    tip.textContent = speedLevel(v);
+    tip.style.color = speedColor(v);
+  }
+}
+
+// 把显示同步到后端给的值（任务结束后会回到默认，这里负责跟着变）
+function setSpeedDisplay(v){
+  let best = 0, bd = Infinity;
+  SPEED_STEPS.forEach((x, k) => { const d = Math.abs(x - v); if (d < bd){ bd = d; best = k; } });
+  si = best;
+  paintSpeed();
+}
+
+async function bumpSpeed(d){
+  if (running && !paused) return;             // 锁着就别动
+  const i = Math.min(Math.max(si + d, 0), SPEED_STEPS.length - 1);
+  if (i === si) return;
+  si = i;
+  paintSpeed();                               // 先给反馈，再发请求
+  const v = SPEED_STEPS[si];
+  const r = await api('/api/speed', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({speed: v})}).then(r=>r.json());
+  if (!r.ok){
+    alert(r.msg || '速度没改成');
+    if (typeof r.speed === 'number') setSpeedDisplay(r.speed);
+    else paintSpeed();
+  }
+}
+
+// 服务端一次性令牌：本机其它程序拿不到它，就无法指挥这个工具干活
+const TOKEN = '__TOKEN__';
+const rawFetch = window.fetch.bind(window);
+const api = (url, opt) => rawFetch(url + (url.includes('?') ? '&' : '?') + 'token=' + TOKEN, opt);
+
+const esc = s => String(s).replace(/[&<>"]/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pad2 = n => String(n).padStart(2, '0');
+
+// 把文件转成 base64。
+// 不能写成 btoa(String.fromCharCode(...new Uint8Array(buf)))：
+// 展开运算符的参数个数有上限（约 6 万），名单文件一旦超过这个大小就会
+// 直接抛 RangeError，同事看到的是"点了没反应"。所以分块来。
+function toB64(buf){
+  const u8 = new Uint8Array(buf);
+  let s = '';
+  const CH = 0x8000;
+  for (let i = 0; i < u8.length; i += CH){
+    s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+  }
+  return btoa(s);
+}
+
+// ---------- 站点列表 ----------
+// 初始化和"添加新比赛"都要重画这个下拉框，所以抽出来共用一份 ——
+// 两处各写一套的话，迟早出现"这里能选中、那里选不中"的怪事。
+function fillSites(sites, pick){
+  const sel = $('site');
+  sel.innerHTML = '';
+  sites.forEach(s=>{
+    const o = document.createElement('option');
+    o.value = s.key; o.textContent = s.title;
+    sel.appendChild(o);
+  });
+  if (pick) sel.value = pick;
+}
+
+async function init(){
+  const r = await api('/api/sites').then(r=>r.json());
+  fillSites(r.sites, r.default);
+  $('out').value = r.default_out || '';
+  updPreview();
+  // 速度控件的档位由后端给（前端不再各写一份），并显示当前值
+  if (Array.isArray(r.speed_steps) && r.speed_steps.length) SPEED_STEPS = r.speed_steps;
+  if (typeof r.speed === 'number') setSpeedDisplay(r.speed);
+  $('sp-minus').onclick = () => bumpSpeed(-1);
+  $('sp-plus').onclick  = () => bumpSpeed(+1);
+  paintSpeed();
+  initFilters(null);   // 还没拖名单：先把筛选区摆出来（带引导语），别让人不知道有这功能
+  await check(true);
+  appendLog([{t:'提示：先用「试跑」验证几个学生，确认证书正确再跑全量。', c:'dim'}]);
+}
+
+// ---------- 保存位置预览 ----------
+// 同事最怕的"文件到底存哪去了"，就在这一步说清楚，不要等他跑完再找。
+function effOut(){
+  const base = $('out').value.trim();
+  if (!base) return '';
+  if (!$('sub').checked) return base;
+  const d = new Date();
+  return base.replace(/[\\/]+$/, '') + '\\证书_' +
+         d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+}
+
+function updPreview(){
+  const box = $('out-preview');
+  if (running) return;
+  if (!$('out').value.trim()){
+    box.innerHTML = '还没选位置。点「浏览…」挑一个，或者直接在上面粘一个路径。';
+    return;
+  }
+  const p = effOut();
+  box.innerHTML = '证书会存到：<b>' + esc(p) + '\\</b>' +
+    ($('sub').checked
+      ? '<br>同一批人分几次跑，都进这个文件夹，证书数量会自动累计。'
+      : '<br>不建子文件夹，学校文件夹会直接放在这个位置下。');
+}
+
+// ---------- 日志 ----------
+// 故障自救提示由后端逐行输出，这里按行首特征自动上色，让人一眼看出哪些是"要动手做的事"
+function guessClass(t){
+  const s = t.replace(/^\s+/, '');
+  if (/^[─=]{10,}$/.test(s)) return 'rule';
+  if (s.startsWith('【')) return 'warn';
+  if (s.startsWith('⚠')) return 'warn';
+  if (s.startsWith('✓')) return 'ok';
+  if (s.startsWith('★')) return 'ok';
+  if (/^[①②③④⑤⑥⑦⑧⑨⑩]/.test(s)) return 'fix';
+  if (s.startsWith('第 ') && s.includes('步｜')) return 'fix';
+  return '';
+}
+function appendLog(items){
+  const box = $('log');
+  if (logOffset === 0) box.innerHTML = '';
+  items.forEach(it=>{
+    const d = document.createElement('div');
+    const cls = it.c || guessClass(it.t || '');
+    if (cls) d.className = cls;
+    d.textContent = it.t;
+    box.appendChild(d);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+
+// ---------- 拖拽 / 选择文件 ----------
+const drop = $('drop');
+drop.onclick = ()=> $('file').click();
+['dragenter','dragover'].forEach(e=>drop.addEventListener(e, ev=>{
+  ev.preventDefault(); drop.style.borderColor='var(--brand)';
+}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e, ev=>{
+  ev.preventDefault(); drop.style.borderColor='';
+}));
+drop.addEventListener('drop', ev=>{
+  if (ev.dataTransfer.files.length) setFile(ev.dataTransfer.files[0]);
+});
+$('file').onchange = ()=>{ if ($('file').files.length) setFile($('file').files[0]); };
+
+function setFile(f){
+  const ok = /\.(xlsx|xlsm|csv)$/i.test(f.name);
+  if (!ok){ alert('只支持 Excel(.xlsx/.xlsm) 或 CSV 文件'); return; }
+  pickedFile = f; pickedB64 = '';
+  drop.classList.add('has');
+  const kb = (f.size/1024).toFixed(0);
+  drop.innerHTML = '<div class="fname">📄 ' + esc(f.name) + '</div>' +
+                   '<div class="hint" style="color:#047857" id="drop-info">' +
+                   kb + ' KB · 正在看一下这份名单…</div>';
+  peekFile(f);
+}
+
+// 拖进来就立刻看一眼：多少人、列的认不认得出。
+// 为什么值得多这一步？如果选错了文件、或者表头不是"姓名/证件号"，
+// 现在 1 秒就能知道；不这么做的话，要等跑完几十分钟才发现"怎么才 3 个人"。
+async function peekFile(f){
+  const seq = ++peekSeq;
+  let b64;
+  try{
+    b64 = toB64(await f.arrayBuffer());
+  }catch(e){
+    const info = $('drop-info');
+    if (info && seq === peekSeq){ info.style.color = 'var(--err)'; info.textContent = '读文件失败：' + e; }
+    return;
+  }
+  if (seq !== peekSeq) return;          // 期间又换了别的文件，这次结果作废
+  pickedB64 = b64;
+  let r;
+  try{
+    r = await api('/api/peek', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({filename: f.name, content_b64: b64, site: $('site').value})}).then(r=>r.json());
+  }catch(e){
+    r = {ok:false, msg:String(e)};
+  }
+  if (seq !== peekSeq) return;          // 拖文件拖得快时，只认最后一次的结果
+  const info = $('drop-info');
+  if (!info) return;
+  if (!r.ok){
+    info.style.color = 'var(--err)';
+    info.innerHTML = '<span style="font-weight:600">⚠ 这份名单用不了</span><br>' +
+      esc(r.msg).replace(/\n/g, '<br>');
+    initFilters({ok:false});               // 名单不认，筛选区改成提示语
+    return;
+  }
+  const c = r.cols || {};
+  let line = '识别到「' + esc(c.name || '?') + '」+「' + esc(c.id || '?') + '」两列';
+  if (c.school) line += '，还有学校列';
+  if (r.skipped) line += '；跳过 ' + r.skipped + ' 行没填名字/证件号的';
+  info.innerHTML =
+    '<span style="color:#065f46;font-weight:600">✓ 名单可用：' + r.total + ' 人</span>' +
+    '<br>' + line +
+    '<br>前几个是：' + esc((r.sample || []).join('、')) +
+    '<br><span style="color:#6b7280">要挑一部分人，就在下面「按表头筛选」里筛；'
+    + '不筛就直接点「开始查询并下载」。</span>';
+  initFilters(r);                          // 名单换了，筛选面板整块重来
+}
+
+// ---------- 按表头筛选 ----------
+// 为什么在浏览器里算？因为筛选得"点一下就出结果"，像 Excel 那样不能有等待感。
+// 名单撑死几千行，本地算毫无压力，也就不必每勾一个值都去问一遍后端。
+//
+// 但请注意：界面上这个人数只是**预览**。真正跑谁，由后端在 load_list 里
+// 拿同一套规则再算一遍 —— 两边都走 core.cell_text() 转字符串，
+// 规则完全一致，不会出现"界面说 12 人、实跑 15 人"这种对不上账的事。
+let allRows = [], allHeaders = [], fcond = {};
+const FMAXVALS = 60;      // 一列最多摆 60 个值；再多就靠搜索框，列表摆不下也没人翻
+
+function resetFilters(){
+  allRows = []; allHeaders = []; fcond = {};
+  $('f-chips').innerHTML = '';
+  $('f-cols').innerHTML = '';
+  $('f-note').textContent = '';
+}
+
+// 一列的条件 = 「勾了哪些值」，多个值之间是 OR。
+//
+// 特别注意：输入框**不是**筛选条件。它只负责把下面的选项列表筛出你要找的那个，
+// 真正生效的是勾。这是 Excel 自动筛选的手感 —— 先搜出选项，再打勾，
+// 好处是"我到底筛了哪几所学校"永远一目了然：看勾就知道了。
+function fcondOf(col){
+  if (!fcond[col]) fcond[col] = { values: new Set(), kw: '' };
+  return fcond[col];
+}
+
+function fActive(col){
+  const c = fcond[col];
+  return !!c && c.values.size > 0;
+}
+
+function fColPass(row, col){
+  const c = fcond[col];
+  if (!c || !c.values.size) return true;
+  const v = row[col] == null ? '' : String(row[col]);
+  return c.values.has(v);
+}
+
+// 各列之间：AND。skip 传列名 = 假装这一列没设条件（值列表的联动靠它）
+function fRowPass(row, skip){
+  for (const col in fcond){
+    if (col === skip) continue;
+    if (!fColPass(row, col)) return false;
+  }
+  return true;
+}
+
+function fRows(){
+  return allRows.filter(r => fRowPass(r, null));
+}
+
+// 这一列在"其它条件都满足"的前提下还剩哪些值、各多少人。
+// 这就是"越筛越窄"的来源：筛完学校，奖项列里就只剩那几所学校出现过的奖项。
+function fFacet(col){
+  const m = new Map();
+  for (const r of allRows){
+    if (!fRowPass(r, col)) continue;
+    const v = r[col] == null ? '' : String(r[col]);
+    m.set(v, (m.get(v) || 0) + 1);
+  }
+  return m;
+}
+
+function fBuild(){
+  const grid = $('f-cols');
+  grid.innerHTML = '';
+  allHeaders.forEach(col => {
+    const box = document.createElement('div');
+    box.className = 'fcol';
+    box.dataset.col = col;
+
+    const top = document.createElement('div');
+    top.className = 'fcol-top';
+    const car = document.createElement('span'); car.className = 'car'; car.textContent = '▼';
+    const fn = document.createElement('span'); fn.className = 'fn'; fn.textContent = col;
+    const fs = document.createElement('span'); fs.className = 'fs';
+    top.appendChild(car); top.appendChild(fn); top.appendChild(fs);
+    top.onclick = () => box.classList.toggle('open');
+
+    const body = document.createElement('div');
+    body.className = 'fcol-body';
+    const kw = document.createElement('input');
+    kw.type = 'text'; kw.className = 'fkw';
+    kw.placeholder = '打几个字，找含它的选项（如"光谷"）';
+    // 这里只筛下面的选项列表，不动数据 —— 勾上才算数
+    kw.oninput = () => { fcondOf(col).kw = kw.value.trim(); fPaint(); };
+    const tools = document.createElement('div');
+    tools.className = 'ftools';
+    const list = document.createElement('div');
+    list.className = 'flist';
+    body.appendChild(kw); body.appendChild(tools); body.appendChild(list);
+
+    box.appendChild(top); box.appendChild(body);
+    grid.appendChild(box);
+  });
+  fPaint();
+}
+
+function fChip(text, onDel){
+  const el = document.createElement('span');
+  el.className = 'fchip';
+  const em = document.createElement('em'); em.textContent = text; em.title = text;
+  const b = document.createElement('button'); b.textContent = '×'; b.title = '去掉这个条件';
+  b.onclick = onDel;
+  el.appendChild(em); el.appendChild(b);
+  return el;
+}
+
+function fPaintList(list, tools, col, c){
+  const fac = fFacet(col);
+  // 已勾选的值必须留着 —— 否则勾完它就从列表里消失，想反悔都点不到
+  const items = new Map(fac);
+  c.values.forEach(v => { if (!items.has(v)) items.set(v, 0); });
+
+  const allKeys = Array.from(items.keys());
+  const kw = (c.kw || '').toLowerCase();
+  const keys = kw
+    ? allKeys.filter(v => v.toLowerCase().indexOf(kw) >= 0 || c.values.has(v))
+    : allKeys.slice();
+  // 空格子排最后，其余按人数从多到少
+  // 已勾上的永远排最前 —— 否则勾完它按人数重排会"跑"到 60 名开外看不见，
+  // 看着就像没勾上，想反悔都找不到。
+  keys.sort((a, b) => {
+    const pa = c.values.has(a), pb = c.values.has(b);
+    if (pa !== pb) return pa ? -1 : 1;
+    if (a === '') return 1;
+    if (b === '') return -1;
+    return (items.get(b) - items.get(a)) || String(a).localeCompare(String(b), 'zh');
+  });
+  // 勾中的值不参与 60 上限的截断
+  const picked = keys.filter(v => c.values.has(v));
+  const shown = picked.concat(
+    keys.filter(v => !c.values.has(v)).slice(0, Math.max(0, FMAXVALS - picked.length)));
+
+  // 工具条：说清这一列有几个选项 / 搜出来几个，外加「全选」「清空」。
+  // 搜完懒得一个个勾，直接点全选 —— 这一步很常用，所以必须显眼。
+  tools.innerHTML = '';
+  const tip = document.createElement('span');
+  tip.className = 'ftip';
+  tip.textContent = kw
+    ? '含「' + c.kw + '」的 ' + keys.length + ' 项'
+    : '共 ' + keys.length + ' 项';
+  const bAll = document.createElement('button');
+  bAll.textContent = '全选';
+  bAll.title = kw ? '勾上搜出来的这些' : '勾上这一列的全部';
+  bAll.disabled = !shown.length;
+  bAll.onclick = () => { shown.forEach(v => c.values.add(v)); fPaint(); };
+  const bClr = document.createElement('button');
+  bClr.textContent = '清空';
+  bClr.title = '把这一列勾的全部取消';
+  bClr.disabled = !c.values.size;
+  bClr.onclick = () => { c.values.clear(); fPaint(); };
+  tools.appendChild(tip); tools.appendChild(bAll); tools.appendChild(bClr);
+
+  const keepScroll = list.scrollTop;    // 重画后把滚动条放回原处，别让列表跳回顶
+  list.innerHTML = '';
+  if (!shown.length){
+    const n = document.createElement('div');
+    n.className = 'none';
+    n.textContent = kw ? '没有含「' + c.kw + '」的选项' : '这一列没有值';
+    list.appendChild(n);
+    return;
+  }
+  shown.forEach(v => {
+    const lab = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = c.values.has(v);
+    cb.onchange = () => {
+      if (cb.checked) c.values.add(v); else c.values.delete(v);
+      fPaint();
+    };
+    const em = document.createElement('em');
+    em.textContent = v === '' ? '（空）' : v;
+    em.title = v;
+    const i = document.createElement('i');
+    i.textContent = items.get(v) || 0;
+    lab.appendChild(cb); lab.appendChild(em); lab.appendChild(i);
+    list.appendChild(lab);
+  });
+  if (keys.length > FMAXVALS){
+    const m = document.createElement('div');
+    m.className = 'more';
+    m.textContent = '…这一列共 ' + keys.length + ' 个不同值，只列了前 ' + FMAXVALS
+      + ' 个。找具体某一个（比如某个人），用上面的输入框打几个字更快。';
+    list.appendChild(m);
+  }
+  list.scrollTop = keepScroll;
+}
+
+// 只更新内容、不重建控件 —— 重建会让输入框失焦，打一个字光标就跳走
+function fPaint(){
+  const rows = fRows();
+  const total = allRows.length;
+  const anyOn = allHeaders.some(fActive);
+
+  const left = $('f-left');
+  left.className = anyOn ? 'on' : '';
+  left.innerHTML = anyOn
+    ? '筛完 <b>' + rows.length + '</b> 人 / 共 ' + total + ' 人'
+    : '未筛选 · 共 <b>' + total + '</b> 人';
+
+  const chips = $('f-chips');
+  chips.innerHTML = '';
+  allHeaders.forEach(col => {
+    const c = fcond[col];
+    if (!c) return;
+    c.values.forEach(v => {
+      chips.appendChild(fChip(col + ' = ' + (v === '' ? '（空）' : v), () => {
+        c.values.delete(v); fPaint();
+      }));
+    });
+  });
+
+  document.querySelectorAll('#f-cols .fcol').forEach(box => {
+    const col = box.dataset.col;
+    // 必须拿 fcond 上"那一份"对象。曾经写成 fcond[col] || 新建临时对象 ——
+    // 结果没在输入框打过字的列，每次重画都换一个新对象，勾上的值写完就丢，
+    // 表现出来就是"点勾选，勾不上"。fcondOf 会把它正式挂进 fcond。
+    const c = fcondOf(col);
+    const on = fActive(col);
+    box.classList.toggle('on', on);
+    box.querySelector('.fs').textContent = c.values.size ? '已选 ' + c.values.size + ' 项' : '';
+    const kw = box.querySelector('.fkw');
+    if (document.activeElement !== kw && kw.value !== (c.kw || '')) kw.value = c.kw || '';
+    fPaintList(box.querySelector('.flist'), box.querySelector('.ftools'), col, c);
+  });
+
+  $('f-note').textContent = anyOn
+    ? '已勾中 ' + chips.childElementCount + ' 个条件，筛完剩 ' + rows.length
+      + ' 人 —— 点「开始查询并下载」时就只处理这 ' + rows.length
+      + ' 个人，没筛中的不会去查、也不会下载。'
+    : '用法：点列头的 ▼ 展开，在框里打几个字找出目标（某所学校、某个人都行），'
+      + '再勾上它。其它列会跟着只剩还有戏的选项，一层层筛下去就精确了。';
+}
+
+// 名单换了（或换比赛导致重新识别）就整块重来，别把上一份名单的条件带过来
+function initFilters(r){
+  resetFilters();
+  const card = $('filter-card');
+  const rows = (r && r.table) || [];
+  const heads = (r && r.headers) || [];
+  // 这一块始终露脸：藏起来就有人压根不知道工具能筛选，拖完名单直接往下点下载了
+  card.style.display = 'block';
+
+  if (!r){
+    $('f-note').textContent = '① 先把学生名单拖进来（在上面的「学生名单」里）。'
+      + '名单读进来后，这里会按表头列出可以勾的选项 —— 姓名、学校、地区、奖项都行，'
+      + '一层层勾下去，就能从几百人精确到某一个人。';
+    return;
+  }
+  if (r.ok === false){
+    $('f-note').textContent = '这份名单没读进来，筛选暂时用不了 —— 先看上面那行红色提示。';
+    return;
+  }
+  if (!rows.length || !heads.length){
+    $('f-note').textContent = '这份名单里没读出可以筛选的表头。';
+    return;
+  }
+  if (!r.filterable){
+    $('f-note').textContent = '这份名单有 ' + r.total + ' 人，超过了网页里能实时筛选的上限，'
+      + '所以这一版没开筛选面板，程序会按整份名单处理。'
+      + '如果确实要先筛一部分，建议在 Excel 里筛好再拖进来。';
+    return;
+  }
+  allHeaders = heads.slice();
+  allRows = rows;
+  fBuild();
+}
+
+function collectFilters(){
+  const out = {};
+  allHeaders.forEach(col => {
+    const c = fcond[col];
+    if (!c) return;
+    const vals = Array.from(c.values);
+    // 只发勾中的值。输入框里那点字是拿来找选项的，不是筛选条件本身。
+    if (vals.length) out[col] = { values: vals };
+  });
+  return Object.keys(out).length ? out : null;
+}
+
+$('f-reset').onclick = () => {
+  if (!allHeaders.length) return;
+  fcond = {};
+  document.querySelectorAll('#f-cols .fcol .fkw').forEach(i => { i.value = ''; });
+  fPaint();
+};
+
+// ---------- 自检 ----------
+async function check(silent){
+  if (!silent){ appendLog([{t:'— 环境自检 —', c:'dim'}]); }
+  $('btn-check').disabled = true;
+  try{
+    const r = await api('/api/check').then(r=>r.json());
+    r.lines.forEach(l=>appendLog([{t:l.t, c:l.c||''}]));
+  }catch(e){ appendLog([{t:'自检失败：'+e, c:'err'}]); }
+  $('btn-check').disabled = false;
+}
+
+// ---------- 试跑开关：勾上那一刻就把话说明白 ----------
+// 「试跑」= 只随机查几个人。它最大的风险是被当成"全量跑完了"（2026-09-22 用户那次），
+// 所以勾上就立刻亮提示，人数改了也跟着变 —— 别等跑完才发现不对劲。
+function paintTryWarn(){
+  const on = $('try').checked;
+  $('try-warn').style.display = on ? 'block' : 'none';
+  if (on) $('try-warn-n').textContent = ($('tryn').value || '').trim() || '?';
+}
+$('try').onchange = paintTryWarn;
+$('tryn').oninput = paintTryWarn;
+paintTryWarn();
+
+// ---------- 开始 ----------
+$('btn-start').onclick = async ()=>{
+  if (running) return;
+  if (!pickedFile){ alert('请先选择学生名单文件（Excel 或 CSV）'); return; }
+  if (!pickedB64){
+    try{ pickedB64 = toB64(await pickedFile.arrayBuffer()); }
+    catch(e){ alert('读不出这个文件：' + e); return; }
+  }
+  // 条件把人都筛没了就先拦住。不然会跑到一半才报"筛选后为空"，
+  // 白等一场不说，还容易让人以为程序坏了。
+  if (allRows.length && fRows().length === 0){
+    alert('按现在的筛选条件，一个人都没剩下。\n\n'
+          + '请放宽条件，或点筛选面板右上角的「清空全部筛选」。');
+    return;
+  }
+  if ($('try').checked){
+    const n = parseInt($('tryn').value || '0');
+    if (!(n > 0)){ alert('试跑人数要填一个大于 0 的数字'); return; }
+  }
+  $('btn-start').disabled = true; $('btn-stop').disabled = false;
+  $('btn-pause').disabled = false; $('btn-pause').textContent = '⏸ 暂停';
+  paused = false; paintSpeed();
+  $('done').classList.remove('on');
+  logOffset = 0;
+  $('log').innerHTML = '';
+  const body = {
+    filename: pickedFile.name, content_b64: pickedB64,
+    out: $('out').value.trim(), site: $('site').value,
+    province: '',                       // 省份筛选已经并进下面的表头筛选了
+    subfolder: $('sub').checked,
+    sample: $('try').checked ? parseInt($('tryn').value || '0') : 0,
+    filters: collectFilters()           // 一道道勾出来的条件，交给后端再算一遍
+  };
+  const r = await api('/api/start', {method:'POST', headers:{'Content-Type':'application/json'},
+                                       body: JSON.stringify(body)}).then(r=>r.json());
+  if (!r.ok){ alert(r.msg); $('btn-start').disabled=false; $('btn-stop').disabled=true;
+              $('btn-pause').disabled=true; return; }
+  // 用后端算出来的真实路径，而不是前端预览那个 —— 免得两边算得不一致
+  if (r.out) appendLog([{t:'证书会保存到：' + r.out, c:'dim'}]);
+  running = true;
+  poll();
+};
+
+$('btn-stop').onclick = async ()=>{
+  if (!confirm('确定结束本次任务吗？\n\n已经下好的证书会留着；下次重跑会自动跳过它们，不会重下。')) return;
+  await api('/api/stop',{method:'POST'});
+  $('btn-stop').disabled = true;
+};
+
+// 暂停 / 继续 —— 想改速度必须先停在这儿改（用户定的规矩）
+$('btn-pause').onclick = async ()=>{
+  if (!running) return;
+  const goingResume = paused;
+  $('btn-pause').disabled = true;
+  const r = await api(goingResume ? '/api/resume' : '/api/pause',
+                      {method:'POST', headers:{'Content-Type':'application/json'},
+                       body: JSON.stringify(goingResume ? {speed: SPEED_STEPS[si]} : {})}
+                     ).then(r=>r.json()).catch(e=>({ok:false, msg:String(e)}));
+  $('btn-pause').disabled = false;
+  if (!r.ok){ alert(r.msg || '没成功，再试一次'); return; }
+  paused = !!r.paused;
+  $('btn-pause').textContent = paused ? '▶ 继续' : '⏸ 暂停';
+  paintSpeed();
+};
+
+function poll(){
+  polling = setInterval(async ()=>{
+    const s = await api('/api/progress?offset=' + logOffset).then(r=>r.json());
+    appendLog(s.logs); logOffset = s.offset;
+    // 试跑时标题必须带「试跑中」—— 从头到尾都别让人误以为在跑全量。
+    const trialTag = s.trial ? '🧪 试跑中 · ' : '';
+    $('stage').textContent = trialTag + (s.paused ? '⏸ 已暂停 · ' : '') + (s.stage || '就绪');
+    let sn = s.total ? (s.done + ' / ' + s.total + (s.extra ? '　' + s.extra : '')) : '';
+    if (s.running && typeof s.pct === 'number')
+      sn += (sn ? '　·　' : '') + '总 ' + Math.round(s.pct * 100) + '%';
+    $('stage-num').textContent = sn;
+    // 进度条走的是「整条任务的总进度」（后端按各阶段耗时权重算的），
+    // 不再是每个阶段各自从 0 走到 100。
+    $('bar').style.width = (s.running && typeof s.pct === 'number')
+      ? (Math.min(100, s.pct * 100)).toFixed(1) + '%'
+      : (s.total ? Math.min(100, s.done / s.total * 100) + '%' : (s.running ? '100%' : '0%'));
+    if (paused !== !!s.paused){
+      paused = !!s.paused;
+      $('btn-pause').textContent = paused ? '▶ 继续' : '⏸ 暂停';
+    }
+    if (typeof s.speed === 'number' && Math.abs(SPEED_STEPS[si] - s.speed) > 0.001)
+      setSpeedDisplay(s.speed);
+    paintSpeed();
+    const eb = $('eta');
+    if (s.running && s.eta){
+      eb.style.display = 'block';
+      eb.textContent = '⏳ ' + s.eta;
+    } else {
+      eb.style.display = 'none';
+    }
+    if (!s.running){
+      clearInterval(polling); running = false;
+      $('btn-start').disabled = false; $('btn-stop').disabled = true;
+      $('btn-pause').disabled = true; $('btn-pause').textContent = '⏸ 暂停';
+      paused = false;
+      if (typeof s.speed === 'number') setSpeedDisplay(s.speed);  // 跑完回到默认速度
+      paintSpeed();
+      $('bar').style.width = s.error ? '0%' : '100%';
+      $('eta').style.display = 'none';
+      if (s.error){
+        $('btn-open-retry').style.display = 'none';
+        $('disk-note').style.display = 'none';
+        $('stage').textContent = '执行失败，请按上面的提示处理';
+        appendLog([{t:'❌ ' + s.error, c:'err'}]);
+        $('done-title').textContent = '⚠ 没能跑完，日志里已给出原因和处理办法';
+        $('done-stat').style.display = 'none';
+        $('done').classList.add('on');
+        // 这段文案跟"跑完但有遗留问题"那条一模一样，直接复用 showDiagTip，
+        // 免得同一句话维护两份、改一处漏一处。
+        if (s.diag){ showDiagTip(s.diag); }
+      } else if (s.result){
+        $('done-stat').style.display = '';
+        $('stage').textContent = (s.trial || s.result.sampled) ? '试跑结束 🧪' : '已完成 ✅';
+        $('d-cert').textContent = s.result.cert;
+        $('d-school').textContent = s.result.schools;
+        $('d-miss').textContent = s.result.miss;
+        $('d-fail').textContent = s.result.fail;
+        // 「待开放」= 比赛还没开放下载（页面上还没有证书文件）。它不是失败，
+        // 但一定要露脸：整批都没开放时，上面三个数全是 0，跟"白跑一趟"长得一样。
+        const nf = s.result.nofile || 0;
+        $('d-nofile').textContent = nf;
+        $('d-nofile-box').style.display = nf > 0 ? '' : 'none';
+
+        // 「这个位置一共多少份」和「本次多少份」对不上时必须解释，
+        // 否则同事会以为程序漏下了 —— 分几次跑的时候，这是常态。
+        const dn = $('disk-note');
+        const dt = s.result.disk_total || 0;
+        if (dt > s.result.cert){
+          dn.style.display = 'block';
+          dn.innerHTML = '这个比赛累计已经有 <b>' + dt + '</b> 份证书，' +
+            '比本次的 ' + s.result.cert + ' 份多 ' + (dt - s.result.cert) + ' 份 —— ' +
+            '多出来的是以前跑过的批次（勾了日期文件夹时，它在别的日期文件夹里），' +
+            '属正常，不用重跑。';
+        } else {
+          dn.style.display = 'none';
+        }
+
+        // 有失败的人才给「重跑」这个出口：没人失败就别多摆一个按钮添乱
+        const rb = $('btn-open-retry');
+        if (s.result.retry_xlsx){
+          rb.style.display = '';
+          rb.textContent = '打开失败名单（' + s.result.retry_count + ' 人）';
+        } else {
+          rb.style.display = 'none';
+        }
+
+        const adv = s.result.advice || [];
+        if (adv.length){
+          $('advice-text').textContent = adv.join('\n');
+          $('advice-box').style.display = 'block';
+          $('advice-box').open = true;
+          $('done-title').textContent = '⚠ 已跑完，但有几件事需要处理';
+          if (s.result.diag_name) showDiagTip(s.result.diag_name);
+        }
+        // 一个证书都没有、却有一堆"待开放" —— 这不是出错，是比赛还没放证书。
+        // 标题直接把结论说出来，别让人对着一排 0 自己猜。
+        if (nf > 0 && !s.result.cert){
+          $('done-title').textContent = '⏳ 跑完了：这次没有可下载的证书（多半是比赛还没开放下载）';
+        }
+
+        // 试跑（试跑优先于上面所有标题）：必须说清"这不是全量"。
+        // 没有这一段，同事看到「全部完成 + 未获奖 8 人」只会得出两个错误结论之一：
+        // "名单就 8 个人" 或 "工具坏了"。2026-09-22 用户就栽在这儿。
+        const smp = s.result.sampled || 0;
+        const flt = s.result.filtered_total || 0;
+        if (smp){
+          $('done-title').textContent = '🧪 试跑结束 —— 这不是全量结果';
+          const rest = (flt > smp)
+            ? ('筛选后名单共 <b>' + flt + '</b> 人，还有 <b>' + (flt - smp) + '</b> 人没跑')
+            : '名单里就这么多人';
+          $('trial-note').innerHTML =
+            '本次只随机抽查了 <b>' + smp + '</b> 人，' + rest + '。<br>' +
+            '下面那些数字（未获奖 ' + (s.result.miss || 0) + ' 人等）' +
+            '<b>只代表被抽到的这几个人</b>，不代表全部人。<br>' +
+            '要看全部人的结果：把上面「先随机试跑」的勾去掉，再点「开始」。';
+          $('trial-note').style.display = 'block';
+        } else {
+          $('trial-note').style.display = 'none';
+        }
+        $('done').classList.add('on');
+        $('btn-open').disabled = false;
+      }
+    }
+  }, 700);
+}
+
+$('btn-open').onclick = ()=>{
+  const p = $('out').value.trim();
+  if (!p){
+    // 没选位置就点「打开」，绝不能装死 —— 那在同事眼里就是"按钮坏了"
+    const h = $('out-preview');
+    h.textContent = '先点左边的「浏览…」挑一个文件夹（选完这个「打开」就能点开了）。';
+    h.style.color = '#b45309';
+    $('btn-browse').focus();
+    return;
+  }
+  api('/api/open?what=out&path=' + encodeURIComponent(p), {method:'POST'});
+};
+$('btn-open-folder').onclick = ()=> api('/api/open?what=out',{method:'POST'});
+$('btn-open-xlsx').onclick = ()=> api('/api/open?what=xlsx',{method:'POST'});
+$('btn-open-retry').onclick = ()=> api('/api/open?what=retry',{method:'POST'});
+
+// 故障报告的提示统一走这里，两处（跑挂了 / 跑完有遗留问题）共用同一套文案。
+// 文案必须说清三件事：哪一份、在哪儿、发给谁 —— 同事不会修，他只会把文件转出去；
+// 说不清，他很可能把《使用说明》发出去，对方打开一看全是操作手册，等于没发。
+function showDiagTip(name){
+  const tip = $('diag-tip');
+  tip.style.display = 'block';
+  tip.innerHTML = '故障报告：<b>' + esc(name) + '</b> —— 已放在输出文件夹里，跟证书在一起。' +
+    '要帮忙就把<b>这一份文件</b>发给技术支持：不用发《使用说明》，' +
+    '也不用另外写描述，他打开就懂。 ' +
+    '<a href="#" id="btn-open-diag" style="color:#92400e">打开这份报告</a>' +
+    '<span id="diag-err" style="color:#b45309"></span>';
+  $('btn-open-diag').onclick = (e)=>{ e.preventDefault(); openDiag(); };
+}
+
+// 「打开报告」的统一入口。
+// 以前这里只把请求发出去、不看结果 —— 后端找不到文件时一声不响，
+// 用户看到的就是"按钮点了没反应"（用户 2026-09-21 现场报的）。
+// 现在把失败原因直接摆在链接后面，至少让人知道是为什么。
+function openDiag(){
+  const box = $('diag-err');
+  if (box) box.textContent = '';
+  api('/api/open?what=diag',{method:'POST'})
+    .then(r=>r.json())
+    .then(r=>{
+      if (r && r.ok === false && box) box.textContent = '  ⚠ ' + (r.msg || '没能打开这份报告');
+    })
+    .catch(()=>{ if (box) box.textContent = '  ⚠ 没能打开这份报告（请求失败）'; });
+}
+$('out').oninput = updPreview;
+$('sub').onchange = updPreview;
+// 换站点后要重新认一遍名单：不同比赛的表头列名可能不一样
+// （这个比赛叫「参赛学生姓名」，换个比赛可能叫「考生姓名」）。
+// 不重算的话，界面上会一直显示上一个比赛口径下的人数。
+$('site').onchange = ()=>{ if (pickedFile) peekFile(pickedFile); };
+
+// ---------- 选保存位置（跟装软件时挑安装路径一个手感）----------
+let pkCur = '';
+function pkTip(m){ $('pk-tip').textContent = m || ''; }
+
+async function pkLoad(path){
+  let r;
+  try{
+    r = await api('/api/browse' + (path ? '?path=' + encodeURIComponent(path) : '')).then(r=>r.json());
+  }catch(e){ pkTip('读不到这个位置：' + e); return; }
+  if (!r.ok){ pkTip(r.msg || '打不开这个位置'); return; }
+  pkCur = r.path;
+  $('pk-path').value = r.path;
+  $('pk-up').disabled = !r.parent;
+  $('pk-up').dataset.parent = r.parent || '';
+
+  // 盘符按钮
+  const dv = $('pk-drives'); dv.innerHTML = '';
+  (r.drives || []).forEach(d=>{
+    const b = document.createElement('button');
+    b.textContent = d.name;
+    if (r.path.slice(0,2).toUpperCase() === d.name.toUpperCase()) b.className = 'on';
+    b.onclick = ()=> pkLoad(d.path);
+    dv.appendChild(b);
+  });
+
+  // 子文件夹
+  const box = $('pk-list'); box.innerHTML = '';
+  if (!r.dirs.length){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = '这里没有子文件夹 —— 可以直接用当前这个位置';
+    box.appendChild(e);
+  } else {
+    r.dirs.forEach(d=>{
+      const el = document.createElement('div');
+      el.textContent = '📁 ' + d.name;
+      el.title = d.path;
+      el.onclick = ()=> pkLoad(d.path);
+      box.appendChild(el);
+    });
+  }
+  pkTip(r.dirs.length >= 400 ? '子文件夹太多，只列了前 400 个；可以直接在上方输入完整路径' : '');
+}
+
+function pkClose(){ $('pick').classList.remove('on'); pkTip(''); }
+
+$('btn-browse').onclick = ()=>{
+  $('pick').classList.add('on');
+  pkLoad($('out').value.trim() || '');
+};
+$('pk-up').onclick = ()=> pkLoad($('pk-up').dataset.parent || '');
+$('pk-go').onclick = ()=> pkLoad($('pk-path').value.trim());
+$('pk-path').onkeydown = (e)=>{
+  if (e.key === 'Enter'){ e.preventDefault(); pkLoad($('pk-path').value.trim()); }
+};
+$('pk-cancel').onclick = pkClose;
+$('pick').onclick = (e)=>{ if (e.target === $('pick')) pkClose(); };
+$('pk-ok').onclick = ()=>{
+  if (!pkCur){ pkTip('还没选好位置'); return; }
+  $('out').value = pkCur;
+  updPreview();
+  pkClose();
+};
+$('pk-mk').onclick = async ()=>{
+  const name = prompt('新文件夹叫什么名字？', '证书');
+  if (name === null) return;
+  const r = await api('/api/mkdir', {method:'POST', headers:{'Content-Type':'application/json'},
+                                     body: JSON.stringify({parent: pkCur, name: name})}).then(r=>r.json());
+  if (!r.ok){ alert('新建失败：' + r.msg); return; }
+  await pkLoad(r.path);
+};
+
+// ---------- 换一个新比赛 ----------
+// 为什么要有这个：以前换比赛必须有人去改配置文件，而字段对应关系（F1/F999 那些）
+// 得抓包才看得见 —— 对同事来说等于"必须找人"。现在程序自己去读那个查询页，
+// 把字段对应关系读出来，同事贴个网址就行。
+// 注意顺序：先「识别」，看清识别到了什么，再点「添加」。识别有可能认错，
+// 让他过一眼比闷头写进配置安全得多。
+let nsSid = null;
+
+function nsMsg(text, isErr){
+  $('ns-result').innerHTML = '<div class="hint" style="margin-top:10px;'
+    + (isErr ? 'color:var(--err);' : '') + 'white-space:pre-wrap">' + esc(text) + '</div>';
+}
+
+function nsClose(){ $('newsite').classList.remove('on'); }
+
+$('btn-newsite').onclick = ()=>{
+  nsSid = null;
+  $('ns-url').value = '';
+  $('ns-result').innerHTML = '';
+  $('ns-ok').disabled = true;
+  $('ns-probe').disabled = false;
+  $('newsite').classList.add('on');
+  $('ns-url').focus();
+};
+$('ns-cancel').onclick = nsClose;
+$('newsite').onclick = (e)=>{ if (e.target === $('newsite')) nsClose(); };
+$('ns-url').onkeydown = (e)=>{
+  if (e.key === 'Enter'){ e.preventDefault(); $('ns-probe').click(); }
+};
+
+$('ns-probe').onclick = async ()=>{
+  const url = $('ns-url').value.trim();
+  if (!url){ nsMsg('先把新比赛的查询页网址贴进来', true); return; }
+  $('ns-probe').disabled = true;
+  $('ns-ok').disabled = true;
+  nsMsg('正在打开这个网址、读它的比赛信息…（几秒钟）');
+  const r = await api('/api/probe', {method:'POST', headers:{'Content-Type':'application/json'},
+                                     body: JSON.stringify({url: url})})
+                  .then(r=>r.json()).catch(e=>({ok:false, msg:'请求失败：' + e}));
+  $('ns-probe').disabled = false;
+  if (!r.ok){ nsMsg(r.msg || '识别失败', true); return; }
+
+  nsSid = r.sid;
+  let h = '<div class="nstitle">✅ 认出来了 —— 名字不对，直接改</div>'
+        + '<div class="path-bar" style="margin:8px 0 10px">'
+        +   '<input type="text" id="ns-title" spellcheck="false" style="flex:1"'
+        +   ' placeholder="给这个比赛起个名字">'
+        + '</div>'
+        + '<div class="nsgrid">';
+  r.fields.forEach(f=>{
+    h += '<span class="nsf">' + esc(f.cn) + '<b>' + esc(f.fid) + '</b></span>';
+  });
+  h += '</div>'
+     + '<div class="path-bar" style="margin:10px 0 0">'
+     +   '<span style="white-space:nowrap;font-size:13px;color:#475569">证书文件字段</span>'
+     +   '<input type="text" id="ns-fileurl" spellcheck="false" style="flex:1"'
+     +   ' placeholder="一般就是 URL">'
+     + '</div>'
+     + '<div class="hint" style="margin-top:8px">'
+     + '名字是程序从<b>网页标题</b>里读的，常常不对 —— '
+     + '同一个表单模板换个比赛接着用，标题还是上一场留下的（所以会冒出'
+     + '「快递信息填写」这种名字）。<b>上面那个框里改成你要的，下拉框里显示的就是它。</b><br>'
+     + '下面这排是字段对应关系，看着合理就点「添加这个比赛」；'
+     + '加完建议先勾上「先随机试跑」跑几个人验证一下。<br>'
+     + '<b>「证书文件字段」也别放过</b> —— 证书从哪个字段取，全看它。'
+     + '认错了会"查得到人、却下不到证书"（错误提示是'
+     + '<code>Invalid URL</code>那种黑话）。这个平台的证书地址一般是 <code>URL</code>，'
+     + '不对就改成对的。</div>';
+  (r.notes || []).forEach(n=>{ h += '<div class="hint">' + esc(n) + '</div>'; });
+  // 留一个独立的警告位：识别成功之后再要提示什么，**不能**再走 nsMsg
+  // （那个是整块替换，会把刚填好的表单一起冲掉）
+  h += '<div id="ns-warn" style="margin-top:8px;color:#b45309;font-size:13px"></div>';
+  $('ns-result').innerHTML = h;
+  // 用 DOM 赋值：天然转义，名字里带引号也不怕
+  $('ns-title').value = r.title || '';
+  $('ns-fileurl').value = r.file_url || 'URL';
+  $('ns-ok').disabled = false;
+};
+
+$('ns-ok').onclick = async ()=>{
+  if (!nsSid) return;
+  // 名字由用户定：自动识别读的是网页标题，经常是上一个比赛留下的模板标题
+  const t = ($('ns-title').value || '').trim();
+  if (!t){
+    // 这里**不能**用 nsMsg —— 它是 innerHTML 整块替换，会把识别结果连同
+    // 刚填的名字、证书文件字段一起冲掉。（2026-09-21 真机测试当场抓到的。）
+    const w = $('ns-warn');
+    if (w) w.textContent = '给这个比赛起个名字吧 —— 下拉框里显示的就是它';
+    $('ns-title').focus();
+    return;
+  }
+  const w0 = $('ns-warn');
+  if (w0) w0.textContent = '';
+  $('ns-ok').disabled = true;
+  const r = await api('/api/site_add', {method:'POST', headers:{'Content-Type':'application/json'},
+                                        body: JSON.stringify({sid: nsSid, title: t,
+                                          file_url: ($('ns-fileurl').value || '').trim()})})
+                  .then(r=>r.json()).catch(e=>({ok:false, msg:'请求失败：' + e}));
+  if (!r.ok){ nsMsg(r.msg || '添加失败', true); $('ns-ok').disabled = false; return; }
+  fillSites(r.sites, r.key);
+  nsClose();
+  appendLog([{t:'已添加比赛：' + r.title + '，以后打开就是它。建议先试跑几个人验证。', c:'ok'}]);
+  if (pickedFile) peekFile(pickedFile);   // 换了比赛，人数口径要按新比赛重算一遍
+};
+$('btn-quit').onclick = async (e)=>{
+  e.preventDefault();
+  if (running && !confirm('任务还在运行，确定要关闭吗？')) return;
+  await api('/api/quit',{method:'POST'});
+  document.body.innerHTML = '<div style="padding:60px;text-align:center;color:#6b7280;font-family:Microsoft YaHei">' +
+    '<h2>已关闭</h2><p>可以直接关闭这个页面了。</p></div>';
+};
+
+init();
+</script>
+</body>
+</html>

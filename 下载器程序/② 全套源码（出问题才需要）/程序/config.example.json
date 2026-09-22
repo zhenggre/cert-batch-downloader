@@ -1,0 +1,55 @@
+{
+  "_说明": "这是模板。复制本文件为 config.json 后，把 <...> 换成你自己的比赛查询页。换新比赛在 sites 里加一项即可，不用改代码；也可在界面点「＋ 新比赛」自动识别添加。",
+  "_速度说明": "「每条间隔秒数」= 每查一个人之间等多少秒。嫌慢调小（0.9 快、0.6 更快），嫌快调大。最小 0.3 秒：再快会被网站当机器人、把 IP 封掉，程序会自动拦住。改完存盘、重启程序生效。",
+  "default_site": "site_example",
+  "每条间隔秒数": 1.6,
+  "sites": {
+    "site_example": {
+      "title": "<比赛名称，例如：某某青少年科技竞赛 · 某省选拔赛>",
+      "home_url": "https://biaodan100.com/q/<SHORTID>",
+      "query_url": "https://biaodan100.com/web/pubdata/query?SHORTID=<SHORTID>",
+      "shortid": "<SHORTID>",
+      "frmid": "<从查询页源码里抓的 frmid>",
+      "field_map": {
+        "name": "F1",
+        "id": "F999",
+        "award": "F2",
+        "school": "F3",
+        "province": "F16",
+        "city": "F17",
+        "district": "F15",
+        "teacher": "F6",
+        "file_url": "URL"
+      },
+      "list_columns": {
+        "name": [
+          "查询姓名",
+          "参赛学生姓名",
+          "姓名",
+          "学生姓名",
+          "考生姓名"
+        ],
+        "id_number": [
+          "查询证件号",
+          "参赛学生身份证号",
+          "证件号",
+          "身份证号",
+          "身份证",
+          "证件号码"
+        ],
+        "school": [
+          "学校名称",
+          "学校",
+          "就读学校",
+          "所在学校"
+        ],
+        "province": [
+          "所在地区(省/自治区/直辖市)",
+          "省份",
+          "地区",
+          "省"
+        ]
+      }
+    }
+  }
+}
